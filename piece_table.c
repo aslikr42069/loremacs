@@ -125,23 +125,14 @@ file_table_t* insertEntry(uintmax_t location, file_table_t* table,
   return new_table;
  }
  
- if((current->origin == 1) &&
-    ((current->start + current->length) == buffer_location)){
-  // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  // The above code checks if the edit directly before this
-  // insertion is next to this edit in the append buffer.
-  // If it is, we simply add to the length of the current edit
-  current->length += 1;
-  free(table);
-  new_table->file_length += 1;
-  return new_table;
- }
+ // Should only be called if inserting in middle of an entry 
  
- uintmax_t split_distance = i - location;
- uintmax_t remaining_distance = current->length - split_distance;
-
+ uintmax_t split_distance = current->length - i + location;
+ uintmax_t remaining_distance = i - location;
+ 
  edit_t* insertion = malloc(sizeof(edit_t));
  edit_t* remainder = malloc(sizeof(edit_t));
+
  remainder->tail = current->tail;
  remainder->length = remaining_distance;
  remainder->origin = current->origin;
@@ -158,9 +149,40 @@ file_table_t* insertEntry(uintmax_t location, file_table_t* table,
  insertion->tail = remainder;
  
  current->length = split_distance;
- 
+ current->tail = insertion;
+
  free(table);
  new_table->file_length += 1;
  return new_table;
+}
+
+
+char* readTable(file_table_t* table, char* original, char* append){
+ char *fullText = malloc(sizeof(char) * table->file_length);
+ uintmax_t i = 0;
+ uintmax_t iter = 0;
+ edit_t* current = table->head;
+
+ while(i < table->file_length && current != NULL){
+  iter++;
+  switch(current->origin){
+   case 0:
+    for(uintmax_t j = 0; j < current->length; j++){
+     fullText[i + j] = original[current->start + j];
+    }
+    break;
+   case 1:
+    for(uintmax_t j = 0; j < current->length; j++){
+     fullText[i + j] = append[current->start + j];
+    }
+    break;
+   default:
+    break;
+  }
+  i += current->length;
+  current = current->tail;
+ }
+
+ return fullText;
 }
 
