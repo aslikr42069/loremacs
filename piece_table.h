@@ -32,6 +32,8 @@ char* readTable(file_table_t* table, char* original, char* append);
 
 file_table_t* initTable(char* original);
 
+void freeTable(file_table_t* table);
+
 /*file_table_t* deleteEntry(uintmax_t location, file_table_t* table);
 
 file_table_t* deleteBatch(uintmax_t location, file_table_t* table,
