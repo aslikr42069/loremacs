@@ -19,18 +19,18 @@ file_table_t* initTable(char* original){
    file_head->line_count += 1;
   }
  }
- 
- file_head->lines = malloc(sizeof(uintmax_t) * file_head->line_count);
- uintmax_t j = 0;
- uintmax_t i = 0; 
- while(i < file_head->line_count){
-  if(original[j] == '\n'){
-   file_head->lines[i] = j;
-   i++;
+ if(file_head->line_count > 1){
+  file_head->lines = malloc(sizeof(uintmax_t) * file_head->line_count);
+  uintmax_t j = 0;
+  uintmax_t i = 0; 
+  while(i < file_head->line_count){
+   if(original[j] == '\n'){
+    file_head->lines[i] = j;
+    i++;
+   }
+   j++;
   }
-  j++;
  }
-
  new_table->head = file_head;
  return new_table;
 } 
@@ -184,5 +184,20 @@ char* readTable(file_table_t* table, char* original, char* append){
  }
 
  return fullText;
+}
+
+void freeTable(file_table_t* table){
+ edit_t* freeMe = table->head;
+ edit_t* myTail = freeMe->tail;
+ while(myTail != NULL){
+  if(freeMe->line_count > 1){
+   free(freeMe->lines);
+  }
+  free(freeMe);
+  freeMe = myTail;
+  myTail = freeMe->tail;
+ }
+ free(freeMe);
+ free(table);
 }
 
