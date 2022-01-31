@@ -19,24 +19,28 @@ typedef struct edit_t {
  struct edit_t *parent;
 } edit_t;
 
-typedef struct file_table_t {
+typedef struct piece_table_t {
  uintmax_t file_length;
  uintmax_t edit_count;
  edit_t *head;
-} file_table_t;
+} piece_table_t;
 
-file_table_t* insertEntry(uintmax_t location, file_table_t* table,
+piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
                           uintmax_t buffer_location);
 
-char* readTable(file_table_t* table, char* original, char* append);
+char* readTable(piece_table_t* table, char* original, char* append);
 
-file_table_t* initTable(char* original);
+piece_table_t* initTable(char* original);
 
-void freeTable(file_table_t* table);
+void freeTable(piece_table_t* table);
 
-/*file_table_t* deleteEntry(uintmax_t location, file_table_t* table);
+void printTable(piece_table_t* table);
 
-file_table_t* deleteBatch(uintmax_t location, file_table_t* table,
+void cleanTable(piece_table_t* table); // Garbage collection
+
+/*piece_table_t* deleteEntry(uintmax_t location, piece_table_t* table);
+
+piece_table_t* deleteBatch(uintmax_t location, piece_table_t* table,
                           uintmax_t length);
 */
 #endif
