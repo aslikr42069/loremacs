@@ -40,6 +40,7 @@ piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
  
  piece_table_t* new_table = malloc(sizeof(piece_table_t));
  *new_table = *table;
+  new_table->edit_count += 1;
  
  if(location == 0){
   // Should only be called if inserting at the start of a file
@@ -54,6 +55,7 @@ piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
   new_table->file_length += 1;
   new_table->head = insertion;
   free(table);
+  cleanTable(new_table);
   return new_table;
  }
  
@@ -66,7 +68,12 @@ piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
   }
   current = current->tail;
  }
-
+ 
+ printf("origin: %d\n", current->origin);
+ if(current->origin == 1){
+ printf("start + length: %ld\n", current->start + current->length);
+ printf("buffer location: %ld\n", buffer_location);
+ }
  if(location == new_table->file_length){
   // Is only called if insertion is at the end of the file
   if((current->origin == 1) &&
@@ -78,6 +85,7 @@ piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
    current->length += 1;
    free(table);
    new_table->file_length += 1;
+   cleanTable(new_table);
    return new_table;
   }
   
@@ -91,6 +99,7 @@ piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
   
   new_table->file_length += 1;
   free(table);
+  cleanTable(new_table);
   return new_table;
  }
 
@@ -106,6 +115,7 @@ piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
    current->length += 1;
    free(table);
    new_table->file_length += 1;
+   cleanTable(new_table);
    return new_table;
   }
   
@@ -122,6 +132,7 @@ piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
   
   free(table);
   new_table->file_length += 1;
+  cleanTable(new_table);
   return new_table;
  }
  
@@ -153,6 +164,7 @@ piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
 
  free(table);
  new_table->file_length += 1;
+ cleanTable(new_table);
  return new_table;
 }
 
@@ -202,13 +214,18 @@ void freeTable(piece_table_t* table){
 }
 
 void cleanTable(piece_table_t* table){
+ if((table->edit_count % 4) != 0){
+  return; // Make sure it doesn't run TOO often
+          // as that would be inefficient
+ }
  edit_t* current;
  current = table->head;
  edit_t* myTail = current->tail;
  while(current != NULL){
   if(current->length == 0 && current->parent != NULL){
    // Checking to see if node is empty and not just
-   // an empty file
+   // an empty file. If not just an empty file,
+   // delete the node.
    current->parent->tail = current->tail;
    myTail->parent = current->parent;
    free(current);
@@ -218,8 +235,10 @@ void cleanTable(piece_table_t* table){
   myTail = current->tail;
   }
  }
- current = table->head;
- while(current != NULL){
+  
+ 
+current = table->head;
+while(current != NULL){
   if((current->tail != NULL) && current->origin == 1 &&
      current->tail->origin == 1){
    if(current->start + current->length == current->tail->start){
@@ -232,8 +251,10 @@ void cleanTable(piece_table_t* table){
     free(tmp_tail);
    }
   }
-  current = current->tail;
+ current = current->tail;
  }
+ 
+ 
 }
 
 void printTable(piece_table_t* table){
