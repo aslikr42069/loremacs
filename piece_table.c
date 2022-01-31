@@ -1,9 +1,9 @@
 #include "piece_table.h"
 
 
-file_table_t* initTable(char* original){
+piece_table_t* initTable(char* original){
  uintmax_t len = (uintmax_t) strlen(original);
- file_table_t* new_table = malloc(sizeof(file_table_t));
+ piece_table_t* new_table = malloc(sizeof(piece_table_t));
  new_table->file_length = len;
  new_table->edit_count = 0;
  
@@ -35,10 +35,10 @@ file_table_t* initTable(char* original){
  return new_table;
 } 
 
-file_table_t* insertEntry(uintmax_t location, file_table_t* table,
+piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
                           uintmax_t buffer_location){
  
- file_table_t* new_table = malloc(sizeof(file_table_t));
+ piece_table_t* new_table = malloc(sizeof(piece_table_t));
  *new_table = *table;
  
  if(location == 0){
@@ -157,7 +157,7 @@ file_table_t* insertEntry(uintmax_t location, file_table_t* table,
 }
 
 
-char* readTable(file_table_t* table, char* original, char* append){
+char* readTable(piece_table_t* table, char* original, char* append){
  char *fullText = malloc(sizeof(char) * table->file_length);
  uintmax_t i = 0;
  uintmax_t iter = 0;
@@ -186,7 +186,7 @@ char* readTable(file_table_t* table, char* original, char* append){
  return fullText;
 }
 
-void freeTable(file_table_t* table){
+void freeTable(piece_table_t* table){
  edit_t* freeMe = table->head;
  edit_t* myTail = freeMe->tail;
  while(myTail != NULL){
@@ -199,5 +199,59 @@ void freeTable(file_table_t* table){
  }
  free(freeMe);
  free(table);
+}
+
+void cleanTable(piece_table_t* table){
+ edit_t* current;
+ current = table->head;
+ edit_t* myTail = current->tail;
+ while(current != NULL){
+  if(current->length == 0 && current->parent != NULL){
+   // Checking to see if node is empty and not just
+   // an empty file
+   current->parent->tail = current->tail;
+   myTail->parent = current->parent;
+   free(current);
+  }
+  current = myTail;
+  if(current != NULL){
+  myTail = current->tail;
+  }
+ }
+ current = table->head;
+ while(current != NULL){
+  if((current->tail != NULL) && current->origin == 1 &&
+     current->tail->origin == 1){
+   if(current->start + current->length == current->tail->start){
+    current->length += current->tail->length;
+    edit_t* tmp_tail = current->tail;
+    current->tail = current->tail->tail;
+    if(current->tail != NULL){
+     current->tail->parent = current;
+    }
+    free(tmp_tail);
+   }
+  }
+  current = current->tail;
+ }
+}
+
+void printTable(piece_table_t* table){
+ printf("Start:\tLength:\tOrigin:\n");
+ edit_t* current = table->head;
+ while(current != NULL){
+  printf("%ld\t%ld\t", current->start, current->length);
+  switch(current->origin){
+   case 0:
+    printf("Original\n");
+    break;
+   case 1:
+    printf("Append\n");
+    break;
+   default:
+    break;
+  }
+  current = current->tail;
+ }
 }
 
