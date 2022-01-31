@@ -35,12 +35,11 @@ piece_table_t* initTable(char* original){
  return new_table;
 } 
 
-piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
-                          uintmax_t buffer_location){
- 
- piece_table_t* new_table = malloc(sizeof(piece_table_t));
- *new_table = *table;
-  new_table->edit_count += 1;
+void insertEntry(uintmax_t location, piece_table_t* table,
+                 uintmax_t buffer_location){
+
+  table->edit_count += 1;
+  table->file_length += 1;
  
  if(location == 0){
   // Should only be called if inserting at the start of a file
@@ -49,123 +48,80 @@ piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
   insertion->start = buffer_location;
   insertion->length = 1;
   insertion->origin = 1;
-  insertion->tail = new_table->head;
-  new_table->head->parent = insertion;
+  insertion->tail = table->head;
+  insertion->parent = NULL;
+  table->head->parent = insertion;
+  table->head = insertion;
+  return;
+ }
 
-  new_table->file_length += 1;
-  new_table->head = insertion;
-  free(table);
-  cleanTable(new_table);
-  return new_table;
- }
- 
- edit_t* current = new_table->head;
+ edit_t* current = table->head;
  uintmax_t i = 0;
- while(i <= location){
-  i += current->length;
-  if(current->tail == NULL){
-   break;
-  }
-  current = current->tail;
+ while(i < location){
+   i += current->length;
+   if(current->tail != NULL){
+    current = current->tail;
+   } else {
+     break;
+   }
  }
- 
- printf("origin: %d\n", current->origin);
- if(current->origin == 1){
- printf("start + length: %ld\n", current->start + current->length);
- printf("buffer location: %ld\n", buffer_location);
- }
- if(location == new_table->file_length){
-  // Is only called if insertion is at the end of the file
-  if((current->origin == 1) &&
-     ((current->start + current->length) == buffer_location)){
-   // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   // The above code checks if the edit directly before this
-   // insertion is next to this edit in the append buffer.
-   // If it is, we simply add to the length of the current edit
-   current->length += 1;
-   free(table);
-   new_table->file_length += 1;
-   cleanTable(new_table);
-   return new_table;
+
+ if(location == table->file_length - 1){
+   // Should only be reachable if the edit is at
+   // the very end of the file
+
+  if(current->parent != NULL && current->parent->origin == 1 &&
+     current->parent->start + current->parent->length == buffer_location){
+    // Check if its neighbour behind it is also next to it on the buffer
+    // and if so, simply extend the length of the neighbour
+    current->parent->length += 1;
+    return;
   }
-  
   edit_t* insertion = malloc(sizeof(edit_t));
   insertion->start = buffer_location;
   insertion->length = 1;
-  insertion->parent = current;
   insertion->origin = 1;
   insertion->tail = NULL;
-  current->tail = insertion;
-  
-  new_table->file_length += 1;
-  free(table);
-  cleanTable(new_table);
-  return new_table;
- }
-
- if(i == location){
-  // Should only be called if an edit starts exactly the next
-  // character after the end of one edit
-  if((current->origin == 1) &&
-     ((current->start + current->length) == buffer_location)){
-   // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   // The above code checks if the edit directly before this
-   // insertion is next to this edit in the append buffer.
-   // If it is, we simply add to the length of the current edit
-   current->length += 1;
-   free(table);
-   new_table->file_length += 1;
-   cleanTable(new_table);
-   return new_table;
-  }
-  
-  edit_t* insertion = malloc(sizeof(edit_t));
-  insertion->length = 1;
-  insertion->start = buffer_location;
-  insertion->origin = 1;
-  insertion->tail = current->tail;
   insertion->parent = current;
-  if(insertion->tail != NULL){
-   insertion->tail->parent = insertion;
-  }
   current->tail = insertion;
+  cleanTable(table);
+  return;
+ }
   
-  free(table);
-  new_table->file_length += 1;
-  cleanTable(new_table);
-  return new_table;
- }
- 
- // Should only be called if inserting in middle of an entry 
- 
- uintmax_t split_distance = current->length - i + location;
- uintmax_t remaining_distance = i - location;
- 
- edit_t* insertion = malloc(sizeof(edit_t));
- edit_t* remainder = malloc(sizeof(edit_t));
+ uintmax_t split_remaining_length = i - location;
+ i = i - current->length;
+ uintmax_t split_start_length = location - i;
 
- remainder->tail = current->tail;
- remainder->length = remaining_distance;
- remainder->origin = current->origin;
- remainder->start = current->start + split_distance;
- if(remainder->tail != NULL){
-  remainder->tail->parent = remainder;
+ if(split_remaining_length == 0){
+   if(current->parent != NULL && current->parent->origin == 1 &&
+    current->parent->start + current->parent->length == buffer_location){
+   // Check if its neighbour behind it is also next to it on the buffer
+   // and if so, simply extend the length of the neighbour
+   current->parent->length += 1;
+   cleanTable(table);
+   return;
+  }
  }
- remainder->parent = insertion;
- 
+
+ current->length = split_start_length;
+ edit_t* insertion = malloc(sizeof(edit_t));
+ edit_t* post_insertion = malloc(sizeof(edit_t));
  insertion->start = buffer_location;
  insertion->length = 1;
  insertion->origin = 1;
+ insertion->tail = post_insertion;
  insertion->parent = current;
- insertion->tail = remainder;
- 
- current->length = split_distance;
+ post_insertion->tail = current->tail;
+ post_insertion->origin = 0;
+ if(current->tail != NULL){
+  current->tail->parent = post_insertion;
+ }
+ post_insertion->length = split_remaining_length;
+ post_insertion->start = current->start + current->length;
+ post_insertion->parent = insertion;
  current->tail = insertion;
-
- free(table);
- new_table->file_length += 1;
- cleanTable(new_table);
- return new_table;
+ cleanTable(table);
+ return;
 }
 
 
@@ -214,10 +170,6 @@ void freeTable(piece_table_t* table){
 }
 
 void cleanTable(piece_table_t* table){
- if((table->edit_count % 4) != 0){
-  return; // Make sure it doesn't run TOO often
-          // as that would be inefficient
- }
  edit_t* current;
  current = table->head;
  edit_t* myTail = current->tail;
@@ -227,7 +179,9 @@ void cleanTable(piece_table_t* table){
    // an empty file. If not just an empty file,
    // delete the node.
    current->parent->tail = current->tail;
-   myTail->parent = current->parent;
+   if(myTail != NULL){
+    myTail->parent = current->parent;
+   }
    free(current);
   }
   current = myTail;
@@ -235,8 +189,7 @@ void cleanTable(piece_table_t* table){
   myTail = current->tail;
   }
  }
-  
- 
+
 current = table->head;
 while(current != NULL){
   if((current->tail != NULL) && current->origin == 1 &&
