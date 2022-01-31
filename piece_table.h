@@ -22,11 +22,12 @@ typedef struct edit_t {
 typedef struct piece_table_t {
  uintmax_t file_length;
  uintmax_t edit_count;
+ uintmax_t last_edit_location;
  edit_t *head;
 } piece_table_t;
 
-piece_table_t* insertEntry(uintmax_t location, piece_table_t* table,
-                          uintmax_t buffer_location);
+void insertEntry(uintmax_t location, piece_table_t* table,
+                 uintmax_t buffer_location);
 
 char* readTable(piece_table_t* table, char* original, char* append);
 
