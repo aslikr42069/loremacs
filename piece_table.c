@@ -55,72 +55,71 @@ void insertEntry(uintmax_t location, piece_table_t* table,
   return;
  }
 
- edit_t* current = table->head;
  uintmax_t i = 0;
+ uintmax_t start;
+ edit_t* current = table->head;
  while(i < location){
-   i += current->length;
-   if(current->tail != NULL){
-    current = current->tail;
-   } else {
-     break;
-   }
+  i += current->length;
+  if(current->tail == NULL || i >= location){
+   break;
+  }
+  current = current->tail;
  }
 
- if(location == table->file_length - 1){
-   // Should only be reachable if the edit is at
-   // the very end of the file
-
-  if(current->parent != NULL && current->parent->origin == 1 &&
-     current->parent->start + current->parent->length == buffer_location){
-    // Check if its neighbour behind it is also next to it on the buffer
-    // and if so, simply extend the length of the neighbour
-    current->parent->length += 1;
-    return;
-  }
-  edit_t* insertion = malloc(sizeof(edit_t));
-  insertion->start = buffer_location;
-  insertion->length = 1;
-  insertion->origin = 1;
-  insertion->tail = NULL;
-  insertion->parent = current;
-  current->tail = insertion;
-  cleanTable(table);
+ start = i - current->length;
+ if(location == i && current->origin == 1 &&
+    current->start + current->length == buffer_location){
+  current->length += 1;
   return;
  }
-  
- uintmax_t split_remaining_length = i - location;
- i = i - current->length;
- uintmax_t split_start_length = location - i;
 
- if(split_remaining_length == 0){
-   if(current->parent != NULL && current->parent->origin == 1 &&
-    current->parent->start + current->parent->length == buffer_location){
-   // Check if its neighbour behind it is also next to it on the buffer
-   // and if so, simply extend the length of the neighbour
-   current->parent->length += 1;
-   cleanTable(table);
+ if(location == i){
+   edit_t* insertion = malloc(sizeof(edit_t));
+   insertion->start = buffer_location;
+   insertion->length = 1;
+   insertion->origin = 1;
+   insertion->tail = current->tail;
+   insertion->parent = current;
+   if(current->tail != NULL){
+     current->tail->parent = insertion;
+   }
+   current->tail = insertion;
    return;
-  }
  }
 
- current->length = split_start_length;
+ if(location == start){
+   edit_t* insertion = malloc(sizeof(edit_t));
+   insertion->start = buffer_location;
+   insertion->length = 1;
+   insertion->origin = 1;
+   insertion->tail = current;
+   current->parent->tail = insertion;
+   insertion->parent = current->parent;
+   current->parent = insertion;
+   return;
+ }
+ 
+ printf("Start: %lu\ni:%lu\nlocation:%lu\n", start, i, location);
  edit_t* insertion = malloc(sizeof(edit_t));
  edit_t* post_insertion = malloc(sizeof(edit_t));
+ uintmax_t split_length_1 = location - start;
+ uintmax_t split_length_2 = i - location;
+ 
+ post_insertion->tail = current->tail;
+ post_insertion->parent = insertion;
+ post_insertion->length = split_length_2;
+ post_insertion->start = current->start + split_length_1;
+ post_insertion->origin = current->origin;
+
  insertion->start = buffer_location;
  insertion->length = 1;
  insertion->origin = 1;
  insertion->tail = post_insertion;
  insertion->parent = current;
- post_insertion->tail = current->tail;
- post_insertion->origin = 0;
- if(current->tail != NULL){
-  current->tail->parent = post_insertion;
- }
- post_insertion->length = split_remaining_length;
- post_insertion->start = current->start + current->length;
- post_insertion->parent = insertion;
+
+ current->length = split_length_1;
  current->tail = insertion;
- cleanTable(table);
+
  return;
 }
 
@@ -141,6 +140,7 @@ char* readTable(piece_table_t* table, char* original, char* append){
     break;
    case 1:
     for(uintmax_t j = 0; j < current->length; j++){
+     putchar(fullText[i + j]);
      fullText[i + j] = append[current->start + j];
     }
     break;
@@ -227,5 +227,68 @@ void printTable(piece_table_t* table){
   }
   current = current->tail;
  }
+}
+
+void deleteEntry(uintmax_t location, piece_table_t* table){
+ if(table->file_length == 0){
+  puts("Length == 0");
+  return; // Just to save ourselves from memory errors in the future
+ }
+ 
+ uintmax_t i = 0;
+ edit_t* current = table->head;
+ uintmax_t start, end;
+ while(i < location){
+  i += current->length;
+  if(current->tail == NULL){
+   break;
+  }
+  current = current->tail;
+ }
+ if(i == 0){
+   i = current->length;
+ }
+ start = i - current->length;
+ end = i - 1;
+
+ if(current->length == 1){
+  if(current->parent == NULL && current->tail == NULL){
+   // buffer with only one char and 0 edits, can't
+   // delete node or else no head exists.
+   current->length = 0;
+  } else {
+   if(current->tail != NULL){
+    current->tail->parent = current->parent;
+   }
+   if(current->parent != NULL){
+    current->parent->tail = current->tail;
+   }
+   free(current); 
+  }
+  return;
+ }
+
+ if(location == start){
+  current->start += 1;
+  current->length -= 1;
+  return;
+ }
+ 
+ if(location == end){
+  current->length -= 1;
+  return;
+ }
+ current->length = location - start;
+ edit_t* insertion = malloc(sizeof(edit_t));
+ insertion->start = current->start + current->length + 1;
+ insertion->length = end - location;
+ insertion->origin = current->origin;
+ insertion->tail = current->tail;
+ if(current->tail != NULL){
+  current->tail->parent = insertion;
+ }
+ insertion->parent = current;
+ current->tail = insertion; 
+ return;
 }
 
