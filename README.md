@@ -1,4 +1,4 @@
-# LIME - Lorena's IMportant Editor
+# LIME - Lorena's vIM-like Editor
 ncurses-based text editor with sane defaults
 ## Building Instructions
 
