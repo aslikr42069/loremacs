@@ -1,5 +1,5 @@
-# Loremacs
-Text editor (not emacs clone, just sounded cool)
+# LIME - Lorena's IMportant Editor
+ncurses-based text editor with sane defaults
 ## Building Instructions
 
 For now, all you need is GCC, GNU make, and some implementation of the
