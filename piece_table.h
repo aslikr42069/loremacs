@@ -39,9 +39,8 @@ void printTable(piece_table_t* table);
 
 void cleanTable(piece_table_t* table); // Garbage collection
 
-/*piece_table_t* deleteEntry(uintmax_t location, piece_table_t* table);
+void deleteEntry(uintmax_t location, piece_table_t* table);
 
-piece_table_t* deleteBatch(uintmax_t location, piece_table_t* table,
-                          uintmax_t length);
-*/
+//piece_table_t* deleteBatch(uintmax_t location, piece_table_t* table,
+//                          uintmax_t length);
 #endif
